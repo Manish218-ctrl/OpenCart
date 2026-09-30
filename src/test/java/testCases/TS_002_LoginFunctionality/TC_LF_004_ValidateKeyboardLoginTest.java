@@ -21,7 +21,7 @@ public class TC_LF_004_ValidateKeyboardLoginTest extends BaseClass {
 
             LoginPage lp = new LoginPage(getDriver());
 
-            lp.getEmailField().sendKeys(Keys.TAB); // Focus on email
+            lp.getEmailField().sendKeys(Keys.TAB);
             lp.getEmailField().sendKeys(p.getProperty("email")); // From config.properties
 
             lp.getPasswordField().sendKeys(Keys.TAB);

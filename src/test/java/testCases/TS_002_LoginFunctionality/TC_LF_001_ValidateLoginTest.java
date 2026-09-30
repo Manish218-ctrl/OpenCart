@@ -22,8 +22,8 @@ import testBase.BaseClass;
                 logger.info("Navigated to Login Page");
 
                 LoginPage lp = new LoginPage(getDriver());
-                lp.setEmail(p.getProperty("email"));   // from config.properties
-                lp.setPassword(p.getProperty("password")); // from config.properties
+                lp.setEmail(p.getProperty("email"));
+                lp.setPassword(p.getProperty("password"));
                 lp.clickLogin();
                 logger.info("Entered valid credentials and clicked Login");
 

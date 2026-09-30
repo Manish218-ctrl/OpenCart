@@ -146,7 +146,6 @@ public class ExtentManager implements ITestListener {
             try {
                 Desktop.getDesktop().browse(extentReport.toURI());
             } catch (IOException e) {
-                // Warning 3 fix: use logger instead of printStackTrace()
                 logger.error("Failed to open report in browser: "
                         + extentReport.getAbsolutePath(), e);
             }
