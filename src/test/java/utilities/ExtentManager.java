@@ -7,6 +7,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
@@ -21,9 +23,12 @@ import testBase.BaseClass;
 
 public class ExtentManager implements ITestListener {
 
+    private static final Logger logger = LogManager.getLogger(ExtentManager.class);
+
     public ExtentSparkReporter sparkReporter;
     public static ExtentReports extent;
-    public static ThreadLocal<ExtentTest> test = new ThreadLocal<ExtentTest>();
+    private static final ThreadLocal<ExtentTest> test = new ThreadLocal<>();
+
     String repName;
 
     @Override
@@ -31,7 +36,10 @@ public class ExtentManager implements ITestListener {
         String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
         repName = "Test-Report-" + timeStamp + ".html";
 
-        sparkReporter = new ExtentSparkReporter(System.getProperty("user.dir") + "\\reports\\" + repName);
+        sparkReporter = new ExtentSparkReporter(
+                System.getProperty("user.dir") + File.separator + "reports" + File.separator + repName
+        );
+
         sparkReporter.config().setDocumentTitle("OpenCart Automation Report");
         sparkReporter.config().setReportName("OpenCart Functional Testing");
         sparkReporter.config().setTheme(Theme.DARK);
@@ -64,7 +72,8 @@ public class ExtentManager implements ITestListener {
 
         ExtentTest currentTest = test.get();
         if (currentTest != null) {
-            currentTest.log(Status.INFO, "Test execution started for: " + result.getMethod().getMethodName());
+            currentTest.log(Status.INFO,
+                    "Test execution started for: " + result.getMethod().getMethodName());
         }
     }
 
@@ -72,7 +81,8 @@ public class ExtentManager implements ITestListener {
     public void onTestSuccess(ITestResult result) {
         ExtentTest currentTest = test.get();
         if (currentTest != null) {
-            currentTest.log(Status.PASS, result.getMethod().getMethodName() + " got successfully executed");
+            currentTest.log(Status.PASS,
+                    result.getMethod().getMethodName() + " got successfully executed");
         }
     }
 
@@ -80,26 +90,32 @@ public class ExtentManager implements ITestListener {
     public void onTestFailure(ITestResult result) {
         ExtentTest currentTest = test.get();
         if (currentTest == null) {
-            System.err.println("ExtentTest is null. Creating new test entry for: " + result.getMethod().getMethodName());
+            logger.warn("ExtentTest is null. Creating new test entry for: "
+                    + result.getMethod().getMethodName());
             currentTest = extent.createTest(result.getMethod().getMethodName());
             test.set(currentTest);
         }
 
-        currentTest.log(Status.FAIL, result.getMethod().getMethodName() + " got failed");
+        currentTest.log(Status.FAIL,
+                result.getMethod().getMethodName() + " got failed");
         currentTest.log(Status.INFO, result.getThrowable());
 
         try {
-            Object testObject = result.getInstance();
-            if (testObject instanceof BaseClass) {
-                BaseClass base = (BaseClass) testObject;
+            // Warning 1 fix: pattern variable — combines instanceof check and cast
+            if (result.getInstance() instanceof BaseClass base) {
                 String imgPath = base.captureScreenshot(result.getMethod().getMethodName());
-                currentTest.addScreenCaptureFromPath(imgPath, result.getMethod().getMethodName());
+                if (imgPath != null && !imgPath.isEmpty()) {
+                    currentTest.addScreenCaptureFromPath(imgPath,
+                            result.getMethod().getMethodName());
+                }
             } else {
-                System.err.println("Test class is not an instance of BaseClass. Cannot capture screenshot.");
+                logger.warn("Test class is not an instance of BaseClass. Cannot capture screenshot.");
             }
         } catch (Exception e) {
             currentTest.log(Status.WARNING, "Screenshot capture failed: " + e.getMessage());
-            e.printStackTrace();
+            // Warning 2 fix: use logger instead of printStackTrace()
+            logger.error("Screenshot capture failed for test: "
+                    + result.getMethod().getMethodName(), e);
         }
     }
 
@@ -107,7 +123,8 @@ public class ExtentManager implements ITestListener {
     public void onTestSkipped(ITestResult result) {
         ExtentTest currentTest = test.get();
         if (currentTest != null) {
-            currentTest.log(Status.SKIP, result.getMethod().getMethodName() + " got skipped");
+            currentTest.log(Status.SKIP,
+                    result.getMethod().getMethodName() + " got skipped");
             if (result.getThrowable() != null) {
                 currentTest.log(Status.INFO, result.getThrowable().getMessage());
             }
@@ -118,13 +135,23 @@ public class ExtentManager implements ITestListener {
     public void onFinish(ITestContext testContext) {
         extent.flush();
 
-        String pathOfExtentReport = System.getProperty("user.dir") + "\\reports\\" + repName;
+        String pathOfExtentReport = System.getProperty("user.dir")
+                + File.separator + "reports"
+                + File.separator + repName;
+
         File extentReport = new File(pathOfExtentReport);
 
-        try {
-            Desktop.getDesktop().browse(extentReport.toURI());
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (Desktop.isDesktopSupported()
+                && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            try {
+                Desktop.getDesktop().browse(extentReport.toURI());
+            } catch (IOException e) {
+                logger.error("Failed to open report in browser: "
+                        + extentReport.getAbsolutePath(), e);
+            }
+        } else {
+            logger.info("Report generated at: " + extentReport.getAbsolutePath());
+            logger.info("Auto-open skipped — headless environment detected (CI)");
         }
     }
 
@@ -136,24 +163,3 @@ public class ExtentManager implements ITestListener {
         test.set(extentTest);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
